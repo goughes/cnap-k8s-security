@@ -1,0 +1,21 @@
+# Same policy in PROTECT mode. Use this file if the kubectl patch
+# command is awkward in your shell (PowerShell mangles the JSON quotes).
+# NOTE: Kubewarden allows monitor -> protect, but NOT protect -> monitor.
+# To relax it you must delete the policy and re-apply the monitor version.
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: no-privileged-pods
+spec:
+  module: registry://ghcr.io/kubewarden/policies/pod-privileged:latest
+  mode: protect
+  mutating: false
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists

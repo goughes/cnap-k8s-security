@@ -1,0 +1,42 @@
+# Least privilege for a tenant developer.
+# Read what is NOT here — that is where the thinking went:
+#   secrets        -> every credential in the namespace
+#   pods/exec      -> a shell inside the workload, with its token
+#   rolebindings   -> the ability to grant yourself anything
+#   nodes          -> cluster-scoped, no tenant business there
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alpha-dev
+  namespace: team-alpha
+automountServiceAccountToken: false   # it does not call the API; do not mount a token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tenant-developer
+  namespace: team-alpha
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alpha-dev-binding
+  namespace: team-alpha
+subjects:
+  - kind: ServiceAccount
+    name: alpha-dev
+    namespace: team-alpha
+roleRef:
+  kind: Role                 # Role + RoleBinding = this namespace only.
+  name: tenant-developer     # For many tenants, make this a ClusterRole
+  apiGroup: rbac.authorization.k8s.io   # and bind it per namespace.

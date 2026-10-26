@@ -1,0 +1,16 @@
+# Two tenants sharing one cluster.
+# The labels are load-bearing: NetworkPolicy and Kubewarden both
+# select namespaces by LABEL, never by name.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-alpha
+  labels:
+    tenant: alpha
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-bravo
+  labels:
+    tenant: bravo

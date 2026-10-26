@@ -1,0 +1,101 @@
+# ============================================================================
+# Close the remaining doors. Each of these is independently sufficient
+# to get an attacker from "can create a pod" to "root on the node".
+#
+# !!! VERIFY BEFORE THE WORKSHOP !!!
+# The `settings:` key names below are NOT consistent between Kubewarden
+# policies (some snake_case, some camelCase), and several policies IGNORE
+# an unknown key rather than erroring. A typo therefore gives you a policy
+# that reports STATUS=active and blocks nothing — the worst possible
+# outcome in a security workshop.
+#
+# Confirm the real schema for each policy with:
+#     kwctl inspect registry://ghcr.io/kubewarden/policies/<name>:latest
+# then ACTUALLY TEST the deny with policies/04-escape-attempts.yaml.
+# scripts/preflight.sh does both.
+# ============================================================================
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: no-host-namespaces
+spec:
+  module: registry://ghcr.io/kubewarden/policies/host-namespaces-psp:latest
+  mode: protect
+  mutating: false
+  settings:
+    allow_host_ipc: false
+    allow_host_network: false
+    allow_host_pid: false
+    allow_host_ports: []
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists
+---
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: no-hostpath-mounts
+spec:
+  module: registry://ghcr.io/kubewarden/policies/hostpaths-psp:latest
+  mode: protect
+  mutating: false
+  settings:
+    # An empty allow-list means no hostPath volume is permitted at all.
+    allowedHostPaths: []
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists
+---
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: no-privilege-escalation
+spec:
+  module: registry://ghcr.io/kubewarden/policies/allow-privilege-escalation-psp:latest
+  mode: protect
+  mutating: false
+  settings:
+    default_allow_privilege_escalation: false
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists
+---
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: drop-all-capabilities
+spec:
+  module: registry://ghcr.io/kubewarden/policies/capabilities-psp:latest
+  mode: protect
+  mutating: false
+  settings:
+    allowed_capabilities: []
+    required_drop_capabilities:
+      - ALL
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists

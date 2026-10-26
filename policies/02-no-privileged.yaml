@@ -1,0 +1,21 @@
+# Policy 1, in MONITOR mode: evaluate and record, but do not block.
+# This is how you roll policy onto a live cluster without an outage.
+apiVersion: policies.kubewarden.io/v1
+kind: ClusterAdmissionPolicy
+metadata:
+  name: no-privileged-pods
+spec:
+  module: registry://ghcr.io/kubewarden/policies/pod-privileged:latest
+  mode: monitor
+  mutating: false
+  rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  # Scope to tenant namespaces ONLY. A cluster-wide ban on privileged
+  # pods breaks Calico, which legitimately needs one.
+  namespaceSelector:
+    matchExpressions:
+      - key: tenant
+        operator: Exists

@@ -1,0 +1,31 @@
+# Allow exactly one caller back in.
+#
+# !!! THE CLASSIC BUG !!!
+# namespaceSelector and podSelector in the SAME list item mean AND:
+# "a pod labelled app=probe INSIDE a namespace labelled tenant=alpha".
+# Put a dash in front of podSelector and it becomes a separate item,
+# which means OR: any pod in tenant=alpha, OR any pod called probe
+# ANYWHERE in the cluster. One character, completely different posture,
+# and it applies without complaint.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alpha-probe
+  namespace: team-bravo
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              tenant: alpha
+          podSelector:          # same list item as namespaceSelector = AND
+            matchLabels:
+              app: probe
+      ports:
+        - protocol: TCP
+          port: 8080

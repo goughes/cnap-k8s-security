@@ -1,0 +1,48 @@
+# Four attacks, one per door. With policies/03 applied, EVERY ONE of these
+# must be refused. If any pod is created, that policy is misconfigured —
+# see the warning at the top of 03-harden-tenants.yaml.
+apiVersion: v1
+kind: Pod
+metadata: { name: attack-hostpid, namespace: team-alpha }
+spec:
+  hostPID: true
+  containers:
+    - name: c
+      image: alpine:3.20
+      command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: attack-hostpath, namespace: team-alpha }
+spec:
+  containers:
+    - name: c
+      image: alpine:3.20
+      command: ["sleep", "infinity"]
+      volumeMounts: [{ name: host, mountPath: /host }]
+  volumes:
+    - name: host
+      hostPath: { path: / }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: attack-escalation, namespace: team-alpha }
+spec:
+  containers:
+    - name: c
+      image: alpine:3.20
+      command: ["sleep", "infinity"]
+      securityContext:
+        allowPrivilegeEscalation: true
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: attack-sysadmin, namespace: team-alpha }
+spec:
+  containers:
+    - name: c
+      image: alpine:3.20
+      command: ["sleep", "infinity"]
+      securityContext:
+        capabilities:
+          add: ["SYS_ADMIN"]

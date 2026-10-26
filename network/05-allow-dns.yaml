@@ -1,0 +1,23 @@
+# Allow DNS back, and only DNS.
+# BOTH udp and tcp on 53: DNS falls back to TCP for responses over
+# 512 bytes, so allowing only UDP gives you an intermittent failure
+# that shows up at the worst possible time.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: team-alpha
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

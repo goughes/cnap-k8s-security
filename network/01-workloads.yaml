@@ -1,0 +1,36 @@
+# team-bravo's internal API. No Ingress, no LoadBalancer — "internal only".
+# nginx-unprivileged listens on 8080 as a non-root user, so it satisfies
+# the policies from section 03.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api
+  namespace: team-bravo
+  labels:
+    app: api
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: nginx
+      image: nginxinc/nginx-unprivileged:alpine
+      ports:
+        - containerPort: 8080
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: team-bravo
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8080
+      targetPort: 8080

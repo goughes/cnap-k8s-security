@@ -1,0 +1,107 @@
+# Kubernetes API server audit policy for the CNAP multitenancy workshop.
+#
+# Staged into the node at /etc/ssl/certs/audit-policy.yaml via
+# ~/.minikube/files/ — that directory is already hostPath-mounted into the
+# kube-apiserver static pod, which is why it works. Point the API server at
+# a path that is NOT mounted and it will crash-loop on startup.
+#
+# RULES ARE EVALUATED IN ORDER AND THE FIRST MATCH WINS.
+# A request matching NO rule is not logged at all, so the catch-all at the
+# bottom is mandatory.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+
+# ResponseComplete already carries the outcome, so dropping RequestReceived
+# roughly halves the volume and loses almost nothing.
+omitStages:
+  - "RequestReceived"
+
+rules:
+  # ---------------------------------------------------------------
+  # 1. DROP THE NOISE FIRST. The control plane talks to itself
+  #    constantly; without these rules you drown.
+  # ---------------------------------------------------------------
+  - level: None
+    users:
+      - "system:kube-scheduler"
+      - "system:kube-controller-manager"
+      - "system:apiserver"
+      - "system:kube-proxy"
+
+  # Kubelets list and watch endlessly. Drop their READS only — a kubelet
+  # WRITING something is still interesting.
+  - level: None
+    userGroups: ["system:nodes"]
+    verbs: ["get", "list", "watch"]
+
+  # Health, metrics and discovery endpoints. Do NOT add "/api*" here;
+  # that would silence the entire cluster.
+  - level: None
+    nonResourceURLs:
+      - "/healthz*"
+      - "/readyz*"
+      - "/livez*"
+      - "/version"
+      - "/metrics"
+      - "/openapi*"
+      - "/swagger*"
+
+  # Leader election: every controller patches a Lease every couple of seconds.
+  - level: None
+    resources:
+      - group: "coordination.k8s.io"
+        resources: ["leases"]
+
+  # ---------------------------------------------------------------
+  # 2. WHO TOUCHED A SECRET — the money rule.
+  #    Metadata ONLY. Never Request or RequestResponse on secrets: that
+  #    writes the credential's plaintext into the audit log, and audit
+  #    logs get shipped to a SIEM, indexed, and read by far more people
+  #    than can read Secrets.
+  # ---------------------------------------------------------------
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets", "configmaps"]
+      - group: "authentication.k8s.io"
+        resources: ["tokenreviews"]
+
+  # ---------------------------------------------------------------
+  # 3. PODS IN FULL. RequestResponse so the submitted spec is recorded:
+  #    image, securityContext.privileged, hostPath, hostNetwork, hostPID.
+  #    This is what makes the workshop payoff work.
+  #    exec/attach/portforward are here too — classic lateral movement.
+  # ---------------------------------------------------------------
+  - level: RequestResponse
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: ""
+        resources:
+          - "pods"
+          - "pods/exec"
+          - "pods/attach"
+          - "pods/portforward"
+          - "pods/ephemeralcontainers"
+      - group: "apps"
+        resources: ["deployments", "daemonsets", "statefulsets", "replicasets"]
+
+  # ---------------------------------------------------------------
+  # 4. PRIVILEGE ESCALATION — any RBAC change, in full.
+  # ---------------------------------------------------------------
+  - level: RequestResponse
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+      - group: ""
+        resources: ["serviceaccounts", "serviceaccounts/token"]
+
+  # ---------------------------------------------------------------
+  # 5. Everything else that MUTATES state.
+  # ---------------------------------------------------------------
+  - level: Request
+    verbs: ["create", "update", "patch", "delete", "deletecollection"]
+
+  # ---------------------------------------------------------------
+  # 6. CATCH-ALL. Without this, anything unmatched above is NOT logged.
+  # ---------------------------------------------------------------
+  - level: Metadata

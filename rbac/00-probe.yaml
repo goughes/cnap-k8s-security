@@ -1,0 +1,26 @@
+# A deliberately well-behaved pod: it satisfies Pod Security Admission
+# "restricted" AND the Kubewarden policies from section 03.
+# This is what policy feels like from the developer's side — you can no
+# longer be sloppy. That is the point, and it is also the adoption cost.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: probe
+  namespace: team-alpha
+  labels:
+    app: probe
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: curl
+      image: curlimages/curl:8.10.1
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]

@@ -1,0 +1,12 @@
+# Deny all outbound traffic from team-alpha.
+# This WILL break DNS — that is the lesson. CoreDNS is just another pod.
+# Apply 05-allow-dns.yaml to fix it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: team-alpha
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
