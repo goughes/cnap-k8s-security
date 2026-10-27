@@ -10,8 +10,6 @@ Every command from the slides is below, in order, with the checkpoint that tells
 
 **Docker Desktop memory must be at least 6 GB.** minikube with the docker driver runs inside Docker Desktop and cannot be given more memory than Docker Desktop itself has. Settings → Resources → Memory. On Windows/WSL 2 set it in `%UserProfile%\.wslconfig` and run `wsl --shutdown`. A 4 GB cluster works but is tight.
 
-**Do the setup at home, not at the venue.** The cluster pulls Calico, cert-manager and Kubewarden — several hundred megabytes. Thirty laptops doing that simultaneously on venue Wi-Fi will not finish.
-
 If you would rather not type steps 1–5, `./scripts/start.sh` does all of them in one shot.
 
 ---
@@ -463,16 +461,6 @@ Only the `k8s-security` profile is touched; any other minikube clusters you have
 `scripts/unbrick.sh` is the one to put on a card for your floaters. A malformed audit or encryption config stops the API server from starting, and the symptom is a cluster that hangs on `Waiting for apiserver` and then refuses every `kubectl` command. The script strips the offending flags from the static pod manifest; the kubelet notices and restarts the API server within about thirty seconds, with no rebuild. That turns a workshop-ending failure into a one-minute aside.
 
 `scripts/reset.sh` is a full reset.
-
-## Read this before you present
-
-The deck was written without live access to the Kubewarden, cert-manager and Calico documentation, so a small number of strings in it are version-sensitive and **must be dry-run before you present**. `scripts/preflight.sh` checks all of them against a real cluster and prints what it actually finds.
-
-The Kubewarden policy **settings keys** in `policies/03-harden-tenants.yaml` are the biggest risk. Key names are not consistent between policies, and several policies ignore an unknown key rather than erroring — which gives you a policy that reports `STATUS=active` and blocks nothing. `kwctl inspect` prints each policy's real settings schema, and step 7 of the preflight script runs the actual attacks to prove the denies happen.
-
-The **cert-manager CRD flag** changed between chart versions (`--set crds.enabled=true` versus the older `--set installCRDs=true`). The **exact rejection message** on the "Flip the switch to protect" slide is reconstructed rather than copied from a live run — paste the real one in, because students pattern-match on error text and floaters triage faster with it. The **etcd data path** used in the Secrets section is minikube-specific. And minikube's bundled **Calico namespace** is `kube-system` on some versions and `calico-system` on others.
-
-Budget half an hour for this, on one Apple-silicon Mac and one Windows laptop.
 
 ## A note on the attack
 
